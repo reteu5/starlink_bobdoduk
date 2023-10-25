@@ -35,37 +35,94 @@ public:
     }
 };
 
+string trim(const string& str) {
+    size_t start = str.find_first_not_of(" \t");
+    size_t end = str.find_last_not_of(" \t");
+    if (start == string::npos || end == string::npos) {
+        return "";
+    }
+    return str.substr(start, end - start + 1);
+}
+
 void parseDTS(Tree& tree, string filename) {
     ifstream file(filename);
     string line;
-    string currentParent = "";
+    int depth = 0; // 현재 깊이를 나타내는 변수
+    vector<string> parentStack; // 부모 노드들의 스택을 담는 string 형태의 벡터 선언
+    int lineNumber = 0; // 추가: 현재 줄 번호를 추적하기 위한 변수
+
     while (getline(file, line)) {
+        lineNumber++; // 줄 번호 증가
+
+        // 빈 줄이면 무시하고 다음 줄로 넘어갑니다.
+        if (line.empty()) {
+            continue;
+        }
+
+        int leadingSpaces = 0; // 라인 앞의 공백 문자 개수
+        while (leadingSpaces < line.size() && line[leadingSpaces] == '\t') {
+            leadingSpaces++;
+        }
+
         if (line.find("{") != string::npos) {
-            // new node
-            string name = line.substr(0, line.find(":"));
-            tree.addNode(name, currentParent);
-            currentParent = name;
+            string name = trim(line.substr(0, line.find("{")));
+            string parentName = "";
+            if (!parentStack.empty()) {
+                parentName = parentStack.back();
+            }
+            tree.addNode(name, parentName);
+            parentStack.push_back(name);
+            depth++;
         } else if (line.find("};") != string::npos) {
-            // end of node
-            currentParent = "";
+            if (!parentStack.empty()) {
+                parentStack.pop_back();
+            }
+            depth--;
+        }
+
+        // depth와 leadingSpaces 비교
+        if (depth != leadingSpaces) {
+            cerr << "[-] Incorrect indentation detected at line " << lineNumber << ": " << line << endl;
+            exit(1);
         }
     }
 }
 
+void printTree(TreeNode* node, int depth = 0) {
+    if (!node) return;
+
+    // depth만큼 들여쓰기를 추가
+    for (int i = 0; i < depth; i++) {
+        cout << "  "; // 2개의 공백 문자로 들여쓰기
+    }
+
+    cout << node->name << endl; // 현재 노드의 이름 출력
+
+    // 현재 노드의 모든 자식 노드에 대해 재귀적으로 printTree 호출
+    for (TreeNode* child : node->children) {
+        printTree(child, depth + 1);
+    }
+}
+
 int main(int argc, char* argv[]) {
+    if (argc != 3) {
+        cout << "[-] Usage: ./parse_to_tree <input_file_path> <output_file_path>" << endl;
+        exit(1);
+    }
+
     Tree tree;
     string input_file_path = "";
     string output_file_path = "";
     input_file_path = argv[1];
-    
-
-    if (argc != 3) {
+    output_file_path = argv[2];
+    if (input_file_path.empty() || output_file_path.empty()) {
         cout << "[-] Usage: ./parse_to_tree <input_file_path> <output_file_path>" << endl;
         exit(1);
     }
     
     parseDTS(tree, input_file_path);
     // do something with the tree
+    printTree(tree.root);
     return 0;
 }
 
