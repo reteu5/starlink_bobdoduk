@@ -28,7 +28,7 @@ for dts_file in local_original_files:
     with open(output_file_path, "w", encoding="utf-8") as outfile:
         for line in lines:
             if (line.strip().endswith("{") | line.strip().endswith("}")):
-                print(line)
+                # print(line)
                 outfile.write(line)
 
     print(f"[-] Work Done! Checkout {output_file_path} file.")
