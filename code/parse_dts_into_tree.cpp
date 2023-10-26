@@ -65,6 +65,13 @@ void parseDTS(Tree& tree, string filename) {
         }
 
         if (line.find("{") != string::npos) {
+            // 여는 중괄호를 발견했을 때의 들여쓰기 검사
+            if (depth != leadingSpaces) {
+                cerr << "[-] Incorrect indentation detected at line " << lineNumber << ": \"" << line << "\" | leadingspaces : " << leadingSpaces << " | depth : " << depth << endl;
+                exit(1);
+            }
+            depth++;    // 이제 leadingspaces + 1 == depth
+
             string name = trim(line.substr(0, line.find("{")));
             string parentName = "";
             if (!parentStack.empty()) {
@@ -72,19 +79,22 @@ void parseDTS(Tree& tree, string filename) {
             }
             tree.addNode(name, parentName);
             parentStack.push_back(name);
-            depth++;
-        } else if (line.find("};") != string::npos) {
+            
+        } 
+        else if (line.find("};") != string::npos) {
+            // 닫는 중괄호를 발견했을 때의 들여쓰기 검사
+            depth--; // 먼저 depth 값을 감소시킵니다.
+            if (depth != leadingSpaces) {
+                cerr << "[-] Incorrect indentation detected at line " << lineNumber << ": \"" << line << "\" | leadingspaces : " << leadingSpaces << " | depth : " << depth << endl;
+                exit(1);
+            }
+        
             if (!parentStack.empty()) {
                 parentStack.pop_back();
             }
-            depth--;
         }
-
-        // depth와 leadingSpaces 비교
-        if (depth != leadingSpaces) {
-            cerr << "[-] Incorrect indentation detected at line " << lineNumber << ": " << line << endl;
-            exit(1);
-        }
+        cout << "[-] DEBUG_MSG : " << lineNumber << " leadingSpaces: " << leadingSpaces << ", depth:" << depth << ", line" << line << endl;
+ 
     }
 }
 
