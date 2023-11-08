@@ -10,6 +10,7 @@ class TreeNode {
 public:
     string name;                    // Name of the node
     vector<TreeNode*> children;     // Children of the node
+    map<string, string> attributes;  // Store attributes here
     TreeNode(string n) : name(n) {} // Constructor
 };
 
@@ -64,7 +65,15 @@ void parseDTS(Tree& tree, string filename) {
             leadingSpaces++;
         }
 
-        if (line.find("{") != string::npos) {
+        size_t equalPos = line.find("=");
+        if (equalPos != string::npos && line.back() == ';') {
+            string key = trim(line.substr(0, equalPos));
+            string value = trim(line.substr(equalPos + 1));
+            value.pop_back(); // Remove trailing semicolon
+            if (!parentStack.empty()) {
+                tree.nodes[parentStack.back()]->attributes[key] = value;
+            } 
+        } else if (line.find("{") != string::npos) {
             // 여는 중괄호를 발견했을 때의 들여쓰기 검사
             if (depth != leadingSpaces) {
                 cerr << "[-] Incorrect indentation detected at line " << lineNumber << ": \"" << line << "\" | leadingspaces : " << leadingSpaces << " | depth : " << depth << endl;
@@ -73,28 +82,19 @@ void parseDTS(Tree& tree, string filename) {
             depth++;    // 이제 leadingspaces + 1 == depth
 
             string name = trim(line.substr(0, line.find("{")));
-            string parentName = "";
-            if (!parentStack.empty()) {
-                parentName = parentStack.back();
-            }
+            string parentName = parentStack.empty() ? "" : parentStack.back();
             tree.addNode(name, parentName);
             parentStack.push_back(name);
-            
-        } 
-        else if (line.find("};") != string::npos) {
-            // 닫는 중괄호를 발견했을 때의 들여쓰기 검사
-            depth--; // 먼저 depth 값을 감소시킵니다.
+        } else if (line.find("};") != string::npos) {
+            depth--;
             if (depth != leadingSpaces) {
-                cerr << "[-] Incorrect indentation detected at line " << lineNumber << ": \"" << line << "\" | leadingspaces : " << leadingSpaces << " | depth : " << depth << endl;
+                cerr << "Incorrect indentation detected at line " << lineNumber << endl;
                 exit(1);
             }
-        
             if (!parentStack.empty()) {
                 parentStack.pop_back();
             }
         }
-        cout << "[-] DEBUG_MSG : " << lineNumber << " leadingSpaces: " << leadingSpaces << ", depth:" << depth << ", line" << line << endl;
- 
     }
 }
 
@@ -109,6 +109,12 @@ void printTree(TreeNode* node, int depth = 0) {
     cout << node->name << endl; // 현재 노드의 이름 출력
 
     // 현재 노드의 모든 자식 노드에 대해 재귀적으로 printTree 호출
+    for (const auto& attr : node->attributes) {
+        for (int i = 0; i <= depth; i++) {
+            cout << "  ";
+        }
+        cout << attr.first << " = " << attr.second << endl;
+    }
     for (TreeNode* child : node->children) {
         printTree(child, depth + 1);
     }
