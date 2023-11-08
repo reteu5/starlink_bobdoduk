@@ -119,17 +119,24 @@ void printTree(TreeNode* node, int depth = 0) {
 
     cout << node->name << endl; // 현재 노드의 이름 출력
 
-    // 현재 노드의 모든 자식 노드에 대해 재귀적으로 printTree 호출
+    // 현재 노드의 모든 속성에 대해 출력
     for (const auto& attr : node->attributes) {
         for (int i = 0; i <= depth; i++) {
             cout << "  ";
         }
-        cout << attr.first << " = " << attr.second << endl;
+        cout << attr.first; // key 출력
+        if (!attr.second.empty()) { // value가 비어 있지 않다면 key와 value 출력
+            cout << " = " << attr.second;
+        }
+        cout << endl;
     }
+
+    // 현재 노드의 모든 자식 노드에 대해 재귀적으로 printTree 호출
     for (TreeNode* child : node->children) {
         printTree(child, depth + 1);
     }
 }
+
 
 int main(int argc, char* argv[]) {
     if (argc != 3) {
