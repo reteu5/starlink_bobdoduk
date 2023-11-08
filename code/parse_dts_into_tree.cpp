@@ -64,16 +64,19 @@ void parseDTS(Tree& tree, string filename) {
         while (leadingSpaces < line.size() && line[leadingSpaces] == '\t') {
             leadingSpaces++;
         }
-
+        
         size_t equalPos = line.find("=");
-        if (equalPos != string::npos && line.back() == ';') {
+        if (equalPos != string::npos) {
             string key = trim(line.substr(0, equalPos));
             string value = trim(line.substr(equalPos + 1));
-            value.pop_back(); // Remove trailing semicolon
+            if (value.back() == ';') {
+                value.pop_back(); // Remove trailing semicolon
+            }
             if (!parentStack.empty()) {
                 tree.nodes[parentStack.back()]->attributes[key] = value;
-            } 
+            }
         } else if (line.find("{") != string::npos) {
+                cout << "[-] Opening brace found at line " << lineNumber << endl;
             // 여는 중괄호를 발견했을 때의 들여쓰기 검사
             if (depth != leadingSpaces) {
                 cerr << "[-] Incorrect indentation detected at line " << lineNumber << ": \"" << line << "\" | leadingspaces : " << leadingSpaces << " | depth : " << depth << endl;
@@ -86,13 +89,21 @@ void parseDTS(Tree& tree, string filename) {
             tree.addNode(name, parentName);
             parentStack.push_back(name);
         } else if (line.find("};") != string::npos) {
+            cout << "[-] Closing brace found at line " << lineNumber << endl;
             depth--;
             if (depth != leadingSpaces) {
-                cerr << "Incorrect indentation detected at line " << lineNumber << endl;
+                cerr << "[-] Incorrect indentation detected at line " << lineNumber << endl;
                 exit(1);
             }
             if (!parentStack.empty()) {
                 parentStack.pop_back();
+            }
+        } else if (line.back() == ';') {
+            // Handle the case where there is no '=' sign, and line ends with a semicolon
+            string key = trim(line.substr(0, line.size() - 1)); // Remove trailing semicolon
+            if (!parentStack.empty()) {
+                // Assign an empty string or some other default value as the attribute value
+                tree.nodes[parentStack.back()]->attributes[key] = "";
             }
         }
     }
