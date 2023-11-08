@@ -131,7 +131,6 @@ int main(int argc, char* argv[]) {
     }
     
     parseDTS(tree, input_file_path);
-    // do something with the tree
     printTree(tree.root);
     return 0;
 }

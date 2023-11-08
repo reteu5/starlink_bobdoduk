@@ -1,5 +1,7 @@
 # re.t added stuffs
 src/
+.vscode/
+reference/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
