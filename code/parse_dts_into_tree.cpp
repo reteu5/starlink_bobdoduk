@@ -36,6 +36,8 @@ public:
     }
 };
 
+Tree tree_qemu, tree_rev, tree_custom;
+
 string trim(const string& str) {
     size_t start = str.find_first_not_of(" \t");
     size_t end = str.find_last_not_of(" \t");
@@ -76,7 +78,7 @@ void parseDTS(Tree& tree, string filename) {
                 tree.nodes[parentStack.back()]->attributes[key] = value;
             }
         } else if (line.find("{") != string::npos) {
-                cout << "[-] Opening brace found at line " << lineNumber << endl;
+                // cout << "[-] Opening brace found at line " << lineNumber << endl;
             // 여는 중괄호를 발견했을 때의 들여쓰기 검사
             if (depth != leadingSpaces) {
                 cerr << "[-] Incorrect indentation detected at line " << lineNumber << ": \"" << line << "\" | leadingspaces : " << leadingSpaces << " | depth : " << depth << endl;
@@ -89,7 +91,7 @@ void parseDTS(Tree& tree, string filename) {
             tree.addNode(name, parentName);
             parentStack.push_back(name);
         } else if (line.find("};") != string::npos) {
-            cout << "[-] Closing brace found at line " << lineNumber << endl;
+            // cout << "[-] Closing brace found at line " << lineNumber << endl;
             depth--;
             if (depth != leadingSpaces) {
                 cerr << "[-] Incorrect indentation detected at line " << lineNumber << endl;
@@ -137,25 +139,184 @@ void printTree(TreeNode* node, int depth = 0) {
     }
 }
 
+// void compareTree(Tree& tree1, Tree& tree2, string output_file_path) {
+//     ofstream output_file(output_file_path);
+//     if (!output_file.is_open()) {
+//         cout << "[-] Failed to open output file" << endl;
+//         exit(1);
+//     }
+
+//     // tree1의 모든 노드에 대해 반복
+//     for (const auto& node : tree1.nodes) {
+//         // tree2에 같은 이름의 노드가 없다면, tree1의 해당 노드를 출력
+//         if (tree2.nodes.find(node.first) == tree2.nodes.end()) {
+//             output_file << node.first << endl;
+//             for (const auto& attr : node.second->attributes) {
+//                 output_file << attr.first;
+//                 if (!attr.second.empty()) {
+//                     output_file << " = " << attr.second;
+//                 }
+//                 output_file << endl;
+//             }
+//             output_file << endl;
+//         }
+//     }
+// }
+
+void mergeNodes(TreeNode* node_qemu, TreeNode* node_rev, TreeNode* node_custom) {
+    // Debug: Check if any node is null before merging
+    if (!node_qemu) {
+        cerr << "[-] node_qemu is null" << endl;
+        exit(-1);
+    }
+    if (!node_rev) {
+        cerr << "[-] node_rev is null" << endl;
+        exit(-1);
+    }
+    if (!node_custom) {
+        cerr << "[-] node_custom is null, initializing..." << endl;
+        node_custom = new TreeNode(""); // Initialize with an empty name, or appropriate name
+    }
+
+    // Debugging: Print current node being processed
+    cout << "[+] Merging node: " << node_qemu->name << endl;
+    
+    // Merge attributes
+    for (auto& attr : node_qemu->attributes) {
+        node_custom->attributes[attr.first] = attr.second;
+    }
+    for (auto& attr : node_rev->attributes) {
+        if (node_custom->attributes.find(attr.first) == node_custom->attributes.end()) {
+            // Only add if the attribute doesn't exist
+            node_custom->attributes[attr.first] = attr.second;
+        }
+    }
+
+    // Debugging: Print attributes merged
+    cout << "    Attributes merged for node: " << node_qemu->name << endl;
+
+    // Merge children
+    for (auto* child_qemu : node_qemu->children) {
+        // Check if this child exists in node_rev
+        TreeNode* child_rev = nullptr;
+        for (auto* child : node_rev->children) {
+            if (child->name == child_qemu->name) {
+                child_rev = child;
+                break;
+            }
+        }
+
+        TreeNode* child_custom = new TreeNode(child_qemu->name);
+
+        // Debugging: Print child node being processed
+        cout << "Processing child node: " << child_qemu->name << endl;
+
+        node_custom->children.push_back(child_custom);
+
+        if (child_rev) {
+            // If the child exists in both, merge them
+            mergeNodes(child_qemu, child_rev, child_custom);
+        } else {
+            // Otherwise, copy the tree_qemu child
+            mergeNodes(child_qemu, child_qemu, child_custom);  // Passing the same node to copy it
+        }
+    }
+}
+
+// This function writes the tree to the output file in DTS format
+void writeTreeToFile(TreeNode* node, ofstream& output_file, int depth = 0) {
+    // Check if the file stream is in good state
+    if (!output_file) {
+        cerr << "File stream is in bad state!" << endl;
+        return;
+    }
+    
+    
+    if (!node) return;
+
+    // Indent the output based on the depth of the node
+    string indent(depth * 2, ' ');
+
+    // Write the node name with opening brace
+    output_file << indent << node->name << " {" << "\n";
+
+    // Debug: Print to console as well to verify
+    cout << string(depth * 2, ' ') << node->name << " {" << endl;  // Example of output
+
+
+
+    // Write the attributes
+    for (const auto& attr : node->attributes) {
+        output_file << indent << "  " << attr.first;
+        if (!attr.second.empty()) {
+            output_file << " = " << attr.second;
+        }
+        output_file << ";" << "\n";
+    }
+
+    // Recursively write the children
+    for (TreeNode* child : node->children) {
+        writeTreeToFile(child, output_file, depth + 1);
+    }
+
+    // Write closing brace with appropriate indentation
+    output_file << indent << "};" << "\n";
+}
+
+void compareDTS(Tree& tree_qemu, Tree& tree_rev, string output_file_path) {
+    // Debugging: Print message indicating the start of the merge process
+    cout << "[-] Starting the merge process..." << endl;
+
+    // Populate tree_custom with the merged nodes using the logic discussed previously
+    mergeNodes(tree_qemu.root, tree_rev.root, tree_custom.root);
+
+    // Debugging: Print message indicating the end of the merge process
+    cout << "Merge process completed." << endl;
+
+    // Now write the tree_custom to the output file
+    ofstream output_file(output_file_path);
+    if (!output_file.is_open()) {
+        cerr << "Failed to open output file." << endl;
+        return;
+    }
+
+    // Debugging: Print message indicating the start of the writing process
+    cout << "Starting to write the merged tree to the output file..." << endl;
+
+    // Write the merged tree to the output file
+    writeTreeToFile(tree_custom.root, output_file);
+
+    // Debugging: Print message indicating the end of the writing process
+    cout << "Finished writing the merged tree to the output file." << endl;
+
+    // Close the output file
+    output_file.close();
+}
 
 int main(int argc, char* argv[]) {
-    if (argc != 3) {
-        cout << "[-] Usage: ./parse_to_tree <input_file_path> <output_file_path>" << endl;
+    if (argc != 4) {
+        cout << "[-] Usage: ./parse_to_tree <qemu_path> <rev3_path> <output_file_path>" << endl;
         exit(1);
     }
 
-    Tree tree;
-    string input_file_path = "";
+    // Tree tree_qemu, tree_rev, tree_custom;
+    string input_qemu_path = "";
+    string input_rev_path = "";
     string output_file_path = "";
-    input_file_path = argv[1];
-    output_file_path = argv[2];
-    if (input_file_path.empty() || output_file_path.empty()) {
-        cout << "[-] Usage: ./parse_to_tree <input_file_path> <output_file_path>" << endl;
+    input_qemu_path = argv[1];
+    input_rev_path = argv[2];
+    output_file_path = argv[3];
+    if (input_qemu_path.empty() || input_rev_path.empty() ||output_file_path.empty()) {
+        cout << "[-] Usage: ./parse_to_tree <qemu_path> <rev3_path> <output_file_path>" << endl;
         exit(1);
     }
     
-    parseDTS(tree, input_file_path);
-    printTree(tree.root);
+    parseDTS(tree_qemu, input_qemu_path);
+    parseDTS(tree_rev, input_rev_path);
+    // printTree(tree.root);
+    compareDTS(tree_qemu, tree_rev, output_file_path);
+
+    printTree(tree_custom.root);
     return 0;
 }
 
