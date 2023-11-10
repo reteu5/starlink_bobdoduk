@@ -175,7 +175,7 @@ void mergeNodes(TreeNode* node_qemu, TreeNode* node_rev, TreeNode* node_custom) 
     }
     if (!node_custom) {
         cerr << "[-] node_custom is null, initializing..." << endl;
-        node_custom = new TreeNode(""); // Initialize with an empty name, or appropriate name
+        node_custom = new TreeNode(tree_qemu.root->name); // Initialize with an empty name, or appropriate name
     }
 
     // Debugging: Print current node being processed
@@ -231,14 +231,20 @@ void writeTreeToFile(TreeNode* node, ofstream& output_file, int depth = 0) {
         return;
     }
     
-    
-    if (!node) return;
+
+    if (!node) {
+        cerr << "Error: Attempted to write a null node to file." << endl;
+        // Handle the error as appropriate for your application
+        return;
+    }
 
     // Indent the output based on the depth of the node
     string indent(depth * 2, ' ');
 
     // Write the node name with opening brace
     output_file << indent << node->name << " {" << "\n";
+
+    cout << "[+] Writing node: " << node->name << endl;
 
     // Debug: Print to console as well to verify
     cout << string(depth * 2, ' ') << node->name << " {" << endl;  // Example of output
@@ -267,6 +273,8 @@ void compareDTS(Tree& tree_qemu, Tree& tree_rev, string output_file_path) {
     // Debugging: Print message indicating the start of the merge process
     cout << "[-] Starting the merge process..." << endl;
 
+    tree_custom.root = new TreeNode(tree_qemu.root->name);
+
     // Populate tree_custom with the merged nodes using the logic discussed previously
     mergeNodes(tree_qemu.root, tree_rev.root, tree_custom.root);
 
@@ -275,14 +283,22 @@ void compareDTS(Tree& tree_qemu, Tree& tree_rev, string output_file_path) {
 
     // Now write the tree_custom to the output file
     ofstream output_file(output_file_path);
+
+    if(!output_file.is_open()) {
+        cerr << "Failed to open output file" << endl;
+        exit(-1);
+    }
+
     if (!output_file.is_open()) {
         cerr << "Failed to open output file." << endl;
-        return;
+        exit(-1);
     }
 
     // Debugging: Print message indicating the start of the writing process
     cout << "Starting to write the merged tree to the output file..." << endl;
 
+    // DEBUG
+    // printTree(tree_custom.root);
     // Write the merged tree to the output file
     writeTreeToFile(tree_custom.root, output_file);
 
@@ -291,6 +307,11 @@ void compareDTS(Tree& tree_qemu, Tree& tree_rev, string output_file_path) {
 
     // Close the output file
     output_file.close();
+
+    if(output_file.fail()) {
+        cerr << "Error writing to output file" << endl;
+        exit(-1);
+    }
 }
 
 int main(int argc, char* argv[]) {
